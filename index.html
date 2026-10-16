@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тренажёр умножения ×2</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #fdf6e3;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    #app {
+      max-width: 480px;
+      width: 100%;
+      padding: 20px;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      margin: 10px;
+      padding: 15px 20px;
+      font-size: 1.2rem;
+      background: #a4c6eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      min-width: 120px;
+    }
+    .btn:hover { opacity: 0.9; }
+    .question {
+      font-size: 2rem;
+      margin: 15px 0;
+    }
+    .svg-wrapper {
+      margin: 20px 0;
+    }
+    .feedback {
+      font-size: 1.5rem;
+      margin: 15px 0;
+    }
+    .stars {
+      font-size: 1.2rem;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="start-screen">
+      <h1>Привет! Давай учить умножение на 2</h1>
+      <button class="btn" id="start-btn">Начать</button>
+    </div>
+
+    <div id="question-screen" style="display:none;">
+      <div class="svg-wrapper" id="svg-container"></div>
+      <div class="question" id="question-text"></div>
+      <div id="answers"></div>
+      <div class="feedback" id="feedback" style="display:none;"></div>
+      <button class="btn" id="next-btn" style="display:none;">Дальше</button>
+    </div>
+
+    <div id="end-screen" style="display:none;">
+      <h2>Ты сегодня отлично поработал!</h2>
+      <div class="stars">Собрано звёзд: <span id="star-count">0</span></div>
+      <button class="btn" id="restart-btn">Ещё раз</button>
+      <button class="btn" id="break-btn">Отдохнуть</button>
+    </div>
+  </div>
+
+  <script>
+    const totalStars = { count: 0 };
+    const allQuestions = Array.from({ length: 10 }, (_, i) => ({ a: 2, b: i + 1 }));
+    const selected = [];
+    let current = 0;
+    let currentQuestion = null;
+
+    function shuffle(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function pickQuestions() {
+      selected.length = 0;
+      shuffle([...allQuestions]).slice(0, 5).forEach(q => selected.push(q));
+    }
+
+    pickQuestions();
+
+    const startBtn = document.getElementById('start-btn');
+    const startScreen = document.getElementById('start-screen');
+    const questionScreen = document.getElementById('question-screen');
+    const endScreen = document.getElementById('end-screen');
+    const svgContainer = document.getElementById('svg-container');
+    const questionText = document.getElementById('question-text');
+    const answersDiv = document.getElementById('answers');
+    const feedbackDiv = document.getElementById('feedback');
+    const nextBtn = document.getElementById('next-btn');
+    const restartBtn = document.getElementById('restart-btn');
+    const breakBtn = document.getElementById('break-btn');
+    const starCountSpan = document.getElementById('star-count');
+
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      showQuestion();
+    });
+
+    function renderSVG(q) {
+      const groupCount = q.b; // number of plates
+      const perPlate = q.a; // apples per plate (always 2)
+      const plateWidth = 50;
+      const plateHeight = 70;
+      const margin = 10;
+      const svgWidth = groupCount * (plateWidth + margin);
+      const svgHeight = plateHeight + 30;
+      let svg = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg">`;
+      for (let i = 0; i < groupCount; i++) {
+        const x = i * (plateWidth + margin);
+        // plate (rounded rectangle)
+        svg += `<rect x="${x}" y="10" width="${plateWidth}" height="${plateHeight}" rx="8" ry="8" fill="#f5e6d7" stroke="#c2a38e"/>`;
+        // apples inside plate
+        const appleRadius = 8;
+        const appleY = 30;
+        const spacing = plateWidth / (perPlate + 1);
+        for (let j = 0; j < perPlate; j++) {
+          const appleX = x + spacing * (j + 1);
+          svg += `<circle cx="${appleX}" cy="${appleY}" r="${appleRadius}" fill="#ff7777"/>`;
+        }
+      }
+      svg += `</svg>`;
+      return svg;
+    }
+
+    function showQuestion() {
+      const q = selected[current];
+      currentQuestion = q;
+      questionScreen.style.display = 'block';
+      svgContainer.innerHTML = renderSVG(q);
+      questionText.textContent = `${q.a} × ${q.b} = ?`;
+
+      const correct = q.a * q.b;
+      // wrong answer: off by 2, ensure it's not equal to correct and stays positive
+      let wrong = correct - 2;
+      if (wrong <= 0) wrong = correct + 2;
+      const options = shuffle([correct, wrong]);
+
+      answersDiv.innerHTML = '';
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.textContent = opt;
+        btn.onclick = () => checkAnswer(opt, correct);
+        answersDiv.appendChild(btn);
+      });
+
+      feedbackDiv.style.display = 'none';
+      nextBtn.style.display = 'none';
+    }
+
+    function checkAnswer(selectedAns, correctAns) {
+      if (selectedAns === correctAns) {
+        totalStars.count += 1;
+        feedbackDiv.textContent = 'Молодец! +1 звезда';
+        feedbackDiv.style.display = 'block';
+        nextBtn.style.display = 'inline-block';
+        // disable answer buttons
+        Array.from(answersDiv.children).forEach(b => b.disabled = true);
+      } else {
+        const counting = generateCounting(currentQuestion);
+        feedbackDiv.innerHTML = `Давай посчитаем вместе<br>${counting}`;
+        feedbackDiv.style.display = 'block';
+        // keep buttons enabled for another attempt
+      }
+    }
+
+    function generateCounting(q) {
+      const perPlate = q.a; // always 2
+      const groupCount = q.b;
+      const terms = Array(groupCount).fill(perPlate).join(' + ');
+      const total = perPlate * groupCount;
+      return `${terms} = ${total}`;
+    }
+
+    nextBtn.addEventListener('click', () => {
+      current++;
+      if (current < selected.length) {
+        showQuestion();
+      } else {
+        // finish session
+        questionScreen.style.display = 'none';
+        endScreen.style.display = 'block';
+        starCountSpan.textContent = totalStars.count;
+      }
+    });
+
+    restartBtn.addEventListener('click', () => {
+      totalStars.count = 0;
+      starCountSpan.textContent = '0';
+      pickQuestions();
+      current = 0;
+      endScreen.style.display = 'none';
+      showQuestion();
+    });
+
+    breakBtn.addEventListener('click', () => {
+      endScreen.style.display = 'none';
+      startScreen.style.display = 'block';
+      totalStars.count = 0;
+      starCountSpan.textContent = '0';
+    });
+  </script>
+</body>
+</html>
